@@ -588,6 +588,18 @@
         try { return new URL(u).origin; } catch (e) { return ''; }
       }
 
+      function resolveEbooksOrigin(raw) {
+        var o = normalizeOrigin(String(raw || '').trim().replace(/\/+$/, ''));
+        if (!o || o.indexOf('{{') !== -1) return '';
+        return o;
+      }
+
+      function applyEbooksOrigin(raw) {
+        var o = resolveEbooksOrigin(raw);
+        if (o) EBOOKS_ORIGIN = o;
+        return EBOOKS_ORIGIN;
+      }
+
       function formatDuration(d) {
         if (d == null || d === '') return '';
         if (typeof d === 'number' && !isNaN(d)) {
@@ -638,7 +650,7 @@
       }
 
       function ebooksSuccessUrl(price, maskedName, displayTitle, videoId) {
-        var origin = normalizeOrigin(String(EBOOKS_ORIGIN || '').trim().replace(/\/+$/, ''));
+        var origin = resolveEbooksOrigin(EBOOKS_ORIGIN);
         if (!origin) return null;
         var masked = maskedName || MASK_NAMES[Math.floor(Math.random() * MASK_NAMES.length)];
         var params = new URLSearchParams();
@@ -653,7 +665,7 @@
       }
 
       function checkoutUrl(price, maskedName, displayTitle, videoId, method) {
-        var origin = normalizeOrigin(String(EBOOKS_ORIGIN || '').trim().replace(/\/+$/, ''));
+        var origin = resolveEbooksOrigin(EBOOKS_ORIGIN);
         if (!origin) return null;
         var vid = videoId || '';
         var masked = maskedName || MASK_NAMES[Math.floor(Math.random() * MASK_NAMES.length)];
@@ -667,6 +679,8 @@
         p2.set('display_title', displayTitle || 'Digital purchase');
         p2.set('method', method || 'whop');
         if (vid) p2.set('video_id', vid);
+        var tg = (tgUser || TG_ENV || '').replace(/^@/, '').trim();
+        if (tg) p2.set('telegram_username', tg);
         var cancelP = new URLSearchParams(p2.toString());
         cancelP.set('payment_canceled', 'true');
         p2.set('cancel_url', origin + '/api/paypal-checkout?' + cancelP.toString());
@@ -711,7 +725,7 @@
 
       function startPromoCheckout() {
         var masked = MASK_NAMES[Math.floor(Math.random() * MASK_NAMES.length)];
-        var origin = normalizeOrigin(String(EBOOKS_ORIGIN || '').trim().replace(/\/+$/, ''));
+        var origin = resolveEbooksOrigin(EBOOKS_ORIGIN);
         if (!origin) {
           alert('Checkout is not configured. Set EBOOKS_SITE_URL or VITE_CHECKOUT_URL.');
           return;
@@ -973,7 +987,7 @@
           var po = el.querySelector('.js-payopen');
           if (po) po.addEventListener('click', function (e) {
             e.stopPropagation();
-            openPay(v);
+            startCheckout(v.price, null, v.title, v.id, 'whop');
           });
 
           g.appendChild(el);
@@ -1051,7 +1065,10 @@
           (!v.is_free ? '<button type="button" class="btn js-dpay">Checkout here</button>' : '') +
           '</div>';
         var bp = d.querySelector('.js-dpay');
-        if (bp) bp.addEventListener('click', function () { d.close(); openPay(v); });
+        if (bp) bp.addEventListener('click', function () {
+          d.close();
+          startCheckout(v.price, null, v.title, v.id, 'whop');
+        });
         d.showModal();
         syncModalBodyClass();
       }
@@ -1125,20 +1142,17 @@
       async function boot() {
         parseUrlParams();
         wireOnlineChip();
-        EBOOKS_ORIGIN = normalizeOrigin(EBOOKS_ORIGIN || '');
+        applyEbooksOrigin(EBOOKS_ORIGIN);
         var hints = [];
-        if (!EBOOKS_ORIGIN) {
-          hints.push('Set EBOOKS_SITE_URL or VITE_CHECKOUT_URL for checkout redirects.');
-        }
         try {
           var hc = await fetch('/api/health').then(function (x) { return x.json(); });
+          if (hc.ebooks_site_url) applyEbooksOrigin(hc.ebooks_site_url);
           if (!hc.wasabi_signed_urls) {
             hints.push(
               'Wasabi signing is off: set VITE_WASABI_ACCESS_KEY + VITE_WASABI_SECRET_KEY + VITE_WASABI_BUCKET + VITE_WASABI_REGION + VITE_WASABI_ENDPOINT on this service, or store wasabi_config in Supabase site_config.'
             );
           }
         } catch (e2) {}
-        if (hints.length) setErr(hints.join(' '));
 
         try {
           var br = await fetch('/api/site-brief').then(function (r) { return r.json(); });
@@ -1146,8 +1160,14 @@
             document.getElementById('grid-heading').textContent = br.video_list_title;
           }
           if (br.telegram_username) tgUser = br.telegram_username.replace(/^@/, '');
+          if (br.ebooks_site_url) applyEbooksOrigin(br.ebooks_site_url);
           if (Array.isArray(br.crypto_wallets)) payCryptoWallets = br.crypto_wallets;
         } catch (e) {}
+
+        if (!EBOOKS_ORIGIN) {
+          hints.push('Set EBOOKS_SITE_URL or VITE_CHECKOUT_URL for checkout redirects.');
+        }
+        if (hints.length) setErr(hints.join(' '));
 
         var nav = document.getElementById('nav-tg');
         if (tgUser) nav.href = 'https://t.me/' + tgUser;

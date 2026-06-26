@@ -258,6 +258,7 @@ app.get('/api/health', async (req, res) => {
     site: SITE_NAME,
     supabase: Boolean(supabase),
     ebooks_checkout_origin: Boolean(EBOOKS_SITE_URL),
+    ebooks_site_url: EBOOKS_SITE_URL || '',
     telegram: Boolean(String(TELEGRAM_USERNAME || '').trim()),
     wasabi_signed_urls: Boolean(w.signingReady),
     wasabi_from_env: Boolean(wasabiSecretFromEnv().signingReady),
@@ -358,6 +359,7 @@ app.get('/api/site-brief', async (req, res) => {
       video_list_title: videoListTitle || '',
       telegram_username: (telegram || '').replace(/^@/, ''),
       crypto_wallets,
+      ebooks_site_url: EBOOKS_SITE_URL || '',
     });
   } catch {
     const crypto_wallets = normalizeCryptoList(trimEnv('CRYPTO_WALLETS_JSON', 'VITE_CRYPTO_WALLETS_JSON'));
@@ -365,6 +367,7 @@ app.get('/api/site-brief', async (req, res) => {
       video_list_title: '',
       telegram_username: (TELEGRAM_USERNAME || '').replace(/^@/, ''),
       crypto_wallets,
+      ebooks_site_url: EBOOKS_SITE_URL || '',
     });
   }
 });

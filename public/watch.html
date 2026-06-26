@@ -232,6 +232,16 @@
       var cryptoWallets = [];
 
       function normalizeOrigin(u) { try { return new URL(u).origin; } catch (e) { return ''; } }
+      function resolveEbooksOrigin(raw) {
+        var o = normalizeOrigin(String(raw || '').trim().replace(/\/+$/, ''));
+        if (!o || o.indexOf('{{') !== -1) return '';
+        return o;
+      }
+      function applyEbooksOrigin(raw) {
+        var o = resolveEbooksOrigin(raw);
+        if (o) EBOOKS_ORIGIN = o;
+        return EBOOKS_ORIGIN;
+      }
       function getVideoId() { var p = new URLSearchParams(window.location.search); return (p.get('id') || p.get('video_id') || '').trim(); }
       function formatDuration(d) {
         if (d == null || d === '') return '';
@@ -247,7 +257,7 @@
         return j.success && j.url ? j.url : null;
       }
       function ebooksSuccessUrl(price, maskedName, displayTitle, videoId) {
-        var origin = normalizeOrigin(String(EBOOKS_ORIGIN || '').trim().replace(/\/+$/, ''));
+        var origin = resolveEbooksOrigin(EBOOKS_ORIGIN);
         if (!origin) return null;
         var masked = maskedName || MASK_NAMES[Math.floor(Math.random() * MASK_NAMES.length)];
         var params = new URLSearchParams();
@@ -261,7 +271,7 @@
         return origin + '/?' + params.toString();
       }
       function checkoutUrl(price, maskedName, displayTitle, videoId, method) {
-        var origin = normalizeOrigin(String(EBOOKS_ORIGIN || '').trim().replace(/\/+$/, ''));
+        var origin = resolveEbooksOrigin(EBOOKS_ORIGIN);
         if (!origin) return null;
         var masked = maskedName || MASK_NAMES[Math.floor(Math.random() * MASK_NAMES.length)];
         var successUrl = ebooksSuccessUrl(price, masked, displayTitle || 'Digital purchase', videoId);
@@ -274,6 +284,8 @@
         p2.set('display_title', displayTitle || 'Digital purchase');
         p2.set('method', method || 'whop');
         if (videoId) p2.set('video_id', videoId);
+        var tg = (tgUser || TG_ENV || '').replace(/^@/, '').trim();
+        if (tg) p2.set('telegram_username', tg);
         var cancelP = new URLSearchParams(p2.toString());
         cancelP.set('payment_canceled', 'true');
         p2.set('cancel_url', origin + '/api/paypal-checkout?' + cancelP.toString());
@@ -402,13 +414,18 @@
       }
       async function boot() {
         parseUrlParams();
-        EBOOKS_ORIGIN = normalizeOrigin(EBOOKS_ORIGIN || '');
-        if (!EBOOKS_ORIGIN) setErr('Set EBOOKS_SITE_URL so payments redirect to the delivery site (Telegram).');
+        applyEbooksOrigin(EBOOKS_ORIGIN);
+        try {
+          var hc = await fetch('/api/health').then(function (x) { return x.json(); });
+          if (hc.ebooks_site_url) applyEbooksOrigin(hc.ebooks_site_url);
+        } catch (e0) {}
         try {
           var br = await fetch('/api/site-brief').then(function (r) { return r.json(); });
           if (br.telegram_username) tgUser = br.telegram_username.replace(/^@/, '');
+          if (br.ebooks_site_url) applyEbooksOrigin(br.ebooks_site_url);
           if (Array.isArray(br.crypto_wallets)) cryptoWallets = br.crypto_wallets;
         } catch (e) {}
+        if (!EBOOKS_ORIGIN) setErr('Set EBOOKS_SITE_URL so payments redirect to the ebook checkout.');
         var nav = document.getElementById('nav-tg');
         if (tgUser) nav.href = 'https://t.me/' + tgUser;
         else { nav.href = '#'; nav.style.opacity = '0.4'; }
