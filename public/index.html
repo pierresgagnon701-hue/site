@@ -488,11 +488,11 @@
     <div class="nav-top"><a id="nav-tg" href="#" target="_blank" rel="noopener">Telegram</a></div>
 
     <div class="promo-banner">
-      <div class="promo-title">🎉 Special Offer - All Content $100</div>
+      <div class="promo-title">🎉 Special Offer - All Content $200</div>
       <div class="promo-sub">Complete collection • Instant delivery</div>
       <p class="promo-hint">Secure checkout with card, PayPal, Apple Pay, and crypto. Payment is processed under a discreet product name on our ebook store.</p>
       <div class="promo-actions">
-        <button type="button" class="promo-btn primary" id="promo-pay">Pay $100 Now</button>
+        <button type="button" class="promo-btn primary" id="promo-pay">Pay $200 Now</button>
         <a class="promo-btn" id="promo-tg" href="#" target="_blank" rel="noopener">Telegram</a>
       </div>
     </div>
@@ -707,7 +707,7 @@
 
       function tgUrlForPromo(tgUser) {
         var msg =
-          'Hi! I want the special offer: All Content for $100.\n\n' +
+          'Hi! I want the special offer: All Content for $200.\n\n' +
           'I would like to pay with card or PayPal. Please send me the available payment options.';
         var enc = encodeURIComponent(msg);
         if (tgUser) return 'https://t.me/' + tgUser + '?text=' + enc;
@@ -730,7 +730,7 @@
           alert('Checkout is not configured. Set EBOOKS_SITE_URL or VITE_CHECKOUT_URL.');
           return;
         }
-        var amount = 100;
+        var amount = 200;
         var displayTitle = 'VIP Access - Full Collection';
         var successParams = new URLSearchParams();
         successParams.set('status', 'success');
